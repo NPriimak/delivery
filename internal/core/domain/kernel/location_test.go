@@ -36,6 +36,7 @@ func Test_givenValidParams_whenCreateLocation_thenSuccess(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, x, res.X())
 	assert.Equal(t, y, res.Y())
+	assert.True(t, res.isSet)
 }
 
 func Test_givenTwoEqualsLocation_whenCompareThem_thenReturnTrue(t *testing.T) {
@@ -71,17 +72,25 @@ func Test_givenTwoValidLocations_thenCountDistanceTo_thenReturnCorrectDistance(t
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			assert.Equal(
-				t,
-				test.expected,
-				test.first.DistanceTo(test.second),
-			)
+			res, _ := test.first.CountDistanceTo(test.second)
+
+			assert.Equal(t, test.expected, res)
 		})
 	}
 }
 
+func Test_givenEmptyLocation_whenCountDistance_thenReturnError(t *testing.T) {
+	emptyLocation := Location{}
+	validLocation, _ := NewLocation(5, 4)
+	expected := errs.NewValueIsRequiredError("target")
+
+	_, err := validLocation.CountDistanceTo(emptyLocation)
+
+	assert.Errorf(t, err, expected.Error())
+}
+
 func Test_whenCreateRandomLocation_thenSuccess(t *testing.T) {
 	assert.NotPanics(t, func() {
-		CreateRandom()
+		CreateRandomLocation()
 	}, "expected not panic when creating random location")
 }
