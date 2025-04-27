@@ -53,7 +53,7 @@ func (l Location) Equals(x Location) bool {
 
 func (l Location) CountDistanceTo(target Location) (uint8, error) {
 
-	if target.isEmpty() {
+	if target.IsEmpty() {
 		return 0, errs.NewValueIsRequiredError("target")
 	}
 
@@ -62,7 +62,7 @@ func (l Location) CountDistanceTo(target Location) (uint8, error) {
 	return uint8(dx + dy), nil
 }
 
-func (l Location) isEmpty() bool {
+func (l Location) IsEmpty() bool {
 	return !l.isSet
 }
 
