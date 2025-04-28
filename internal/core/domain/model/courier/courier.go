@@ -162,8 +162,8 @@ func (c *Courier) Move(target kernel.Location) error {
 		return errs.NewValueIsRequiredError("target")
 	}
 
-	dx := float64(target.X() - c.location.X())
-	dy := float64(target.Y() - c.location.Y())
+	dx := float64(target.X()) - float64(c.location.X())
+	dy := float64(target.Y()) - float64(c.location.Y())
 	remainingRange := float64(c.speed)
 
 	if math.Abs(dx) > remainingRange {
@@ -175,10 +175,10 @@ func (c *Courier) Move(target kernel.Location) error {
 		dy = math.Copysign(remainingRange, dy)
 	}
 
-	newX := c.location.X() + uint8(dx)
-	newY := c.location.Y() + uint8(dy)
+	newX := float64(c.location.X()) + dx
+	newY := float64(c.location.Y()) + dy
 
-	newLocation, err := kernel.NewLocation(newX, newY)
+	newLocation, err := kernel.NewLocation(uint8(newX), uint8(newY))
 	if err != nil {
 		return err
 	}

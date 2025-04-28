@@ -165,20 +165,27 @@ func Test_calculateTimeToLocation(t *testing.T) {
 }
 
 func Test_moveToTargetLocation(t *testing.T) {
-	t.Run("given valid target when move then success", func(t *testing.T) {
-		startLoc := createLocation(t, 1, 1)
-		c, _ := NewCourier("test", 5, startLoc)
-		c.location = startLoc
-		targetLoc := createLocation(t, 4, 5)
-		startDistance := 7
-		targetDistance := uint8(startDistance - c.Speed())
+	tests := map[string]struct {
+		startLocation    kernel.Location
+		targetLocation   kernel.Location
+		expectedLocation kernel.Location
+		speed            int
+	}{
+		"move_right":      {createLocation(t, 1, 1), createLocation(t, 10, 1), createLocation(t, 6, 1), 5},
+		"move_left":       {createLocation(t, 10, 1), createLocation(t, 1, 1), createLocation(t, 5, 1), 5},
+		"move_right_down": {createLocation(t, 1, 1), createLocation(t, 5, 6), createLocation(t, 5, 2), 5},
+		"move_left_up":    {createLocation(t, 10, 10), createLocation(t, 3, 6), createLocation(t, 5, 10), 5},
+	}
 
-		err := c.Move(targetLoc)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			c, _ := NewCourier("test", test.speed, test.startLocation)
+			err := c.Move(test.targetLocation)
 
-		assert.NoError(t, err)
-		distance, _ := c.Location().CountDistanceTo(targetLoc)
-		assert.Equal(t, targetDistance, distance)
-	})
+			assert.NoError(t, err)
+			assert.Equal(t, test.expectedLocation, c.Location())
+		})
+	}
 }
 
 func Test_equals(t *testing.T) {
