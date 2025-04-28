@@ -178,7 +178,7 @@ func Test_moveToTargetLocation(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
+		t.Run("when "+name+"then reach expected location", func(t *testing.T) {
 			c, _ := NewCourier("test", test.speed, test.startLocation)
 			err := c.Move(test.targetLocation)
 
