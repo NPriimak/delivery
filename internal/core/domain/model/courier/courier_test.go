@@ -136,7 +136,6 @@ func TestCourier_TakeOrder(t *testing.T) {
 		err := c.TakeOrder(o)
 
 		assert.NoError(t, err)
-		assert.Equal(t, c.ID(), *o.CourierID())
 		assert.True(t, c.StoragePlaces()[0].isOccupied())
 		assert.Equal(t, o.ID(), *c.StoragePlaces()[0].OrderID())
 	})
@@ -178,7 +177,7 @@ func Test_moveToTargetLocation(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		t.Run("when "+name+"then reach expected location", func(t *testing.T) {
+		t.Run("when "+name+" then reach expected location", func(t *testing.T) {
 			c, _ := NewCourier("test", test.speed, test.startLocation)
 			err := c.Move(test.targetLocation)
 

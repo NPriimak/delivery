@@ -113,14 +113,11 @@ func (c *Courier) TakeOrder(order *order.Order) error {
 	if err = freeStorage.Store(order.ID(), order.Volume()); err != nil {
 		return err
 	}
-	if err = order.Assign(c.id); err != nil {
-		return err
-	}
 
 	return nil
 }
 
-func (c *Courier) completeOrder(order *order.Order) error {
+func (c *Courier) CompleteOrder(order *order.Order) error {
 	if order == nil {
 		return errs.NewValueIsRequiredError("order")
 	}
@@ -232,8 +229,12 @@ func (c *Courier) Location() kernel.Location {
 	return c.location
 }
 
-func (c *Courier) StoragePlaces() []*StoragePlace {
-	return c.storagePlaces
+func (c *Courier) StoragePlaces() []StoragePlace {
+	copy := make([]StoragePlace, len(c.storagePlaces))
+	for i, storagePlace := range c.storagePlaces {
+		copy[i] = *storagePlace
+	}
+	return copy
 }
 
 func (c *Courier) Equals(other *Courier) bool {
