@@ -134,9 +134,6 @@ func (c *Courier) CompleteOrder(order *order.Order) error {
 	if err = storage.Clear(order.ID()); err != nil {
 		return err
 	}
-	if err = order.Complete(); err != nil {
-		return err
-	}
 
 	return nil
 }
