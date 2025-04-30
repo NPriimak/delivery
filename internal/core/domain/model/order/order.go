@@ -59,10 +59,6 @@ func (o *Order) Complete() error {
 		return ErrOrderHasNotBeenAssigned
 	}
 
-	if o.status == StatusCompleted {
-		return ErrOrderHasAlreadyBeenCompleted
-	}
-
 	o.status = StatusCompleted
 	return nil
 }
