@@ -1,7 +1,7 @@
 package order
 
 import (
-	"delivery/internal/core/domain/kernel"
+	"delivery/internal/core/domain/model/kernel"
 	"delivery/internal/pkg/errs"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
