@@ -8,8 +8,9 @@ import (
 )
 
 var (
-	ErrOrderHasAlreadyBeenAssigned = errors.New("order has already been assigned")
-	ErrOrderHasNotBeenAssigned     = errors.New("order has not been assigned")
+	ErrOrderHasAlreadyBeenAssigned  = errors.New("order has already been assigned")
+	ErrOrderHasNotBeenAssigned      = errors.New("order has not been assigned")
+	ErrOrderHasAlreadyBeenCompleted = errors.New("Order has already been completed")
 )
 
 type Order struct {
@@ -56,6 +57,10 @@ func (o *Order) Assign(courierID uuid.UUID) error {
 func (o *Order) Complete() error {
 	if !o.isAssigned() {
 		return ErrOrderHasNotBeenAssigned
+	}
+
+	if o.status == StatusCompleted {
+		return ErrOrderHasAlreadyBeenCompleted
 	}
 
 	o.status = StatusCompleted

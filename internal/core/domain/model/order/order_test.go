@@ -102,6 +102,15 @@ func Test_completeOrder(t *testing.T) {
 		assert.Errorf(t, err, ErrOrderHasNotBeenAssigned.Error())
 		assert.Equal(t, StatusCreated, order.Status())
 	})
+
+	t.Run("given order has already been completed", func(t *testing.T) {
+		order := createTestOrder(t)
+		order.status = StatusCompleted
+
+		err := order.Complete()
+		assert.Error(t, err)
+		assert.Errorf(t, err, ErrOrderHasAlreadyBeenCompleted.Error())
+	})
 }
 
 func Test_equals(t *testing.T) {
