@@ -109,7 +109,7 @@ func Test_completeOrder(t *testing.T) {
 
 		err := order.Complete()
 		assert.Error(t, err)
-		assert.Errorf(t, err, ErrOrderHasAlreadyBeenCompleted.Error())
+		assert.Errorf(t, err, ErrOrderHasNotBeenAssigned.Error())
 	})
 }
 

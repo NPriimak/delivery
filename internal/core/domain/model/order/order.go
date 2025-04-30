@@ -8,9 +8,8 @@ import (
 )
 
 var (
-	ErrOrderHasAlreadyBeenAssigned  = errors.New("order has already been assigned")
-	ErrOrderHasNotBeenAssigned      = errors.New("order has not been assigned")
-	ErrOrderHasAlreadyBeenCompleted = errors.New("Order has already been completed")
+	ErrOrderHasAlreadyBeenAssigned = errors.New("order has already been assigned")
+	ErrOrderHasNotBeenAssigned     = errors.New("order has not been assigned")
 )
 
 type Order struct {
