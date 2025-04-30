@@ -230,11 +230,11 @@ func (c *Courier) Location() kernel.Location {
 }
 
 func (c *Courier) StoragePlaces() []StoragePlace {
-	copy := make([]StoragePlace, len(c.storagePlaces))
+	res := make([]StoragePlace, len(c.storagePlaces))
 	for i, storagePlace := range c.storagePlaces {
-		copy[i] = *storagePlace
+		res[i] = *storagePlace
 	}
-	return copy
+	return res
 }
 
 func (c *Courier) Equals(other *Courier) bool {
