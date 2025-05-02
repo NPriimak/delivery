@@ -2,6 +2,7 @@ package order
 
 import (
 	"delivery/internal/core/domain/model/kernel"
+	"delivery/internal/pkg/ddd"
 	"delivery/internal/pkg/errs"
 	"errors"
 	"github.com/google/uuid"
@@ -18,6 +19,8 @@ type Order struct {
 	location  kernel.Location
 	volume    int
 	status    Status
+
+	*ddd.BaseAggregate
 }
 
 func NewOrder(orderID uuid.UUID, location kernel.Location, volume int) (*Order, error) {
@@ -32,10 +35,11 @@ func NewOrder(orderID uuid.UUID, location kernel.Location, volume int) (*Order, 
 	}
 
 	return &Order{
-		id:       orderID,
-		location: location,
-		volume:   volume,
-		status:   StatusCreated,
+		id:            orderID,
+		location:      location,
+		volume:        volume,
+		status:        StatusCreated,
+		BaseAggregate: ddd.NewBaseAggregate(),
 	}, nil
 }
 
@@ -92,4 +96,22 @@ func (o *Order) Equals(other *Order) bool {
 	}
 
 	return o.id == other.id
+}
+
+// RestoreOrder restore Order from db. DO NOT USE IN DOMAIN!
+func RestoreOrder(
+	id uuid.UUID,
+	courierID *uuid.UUID,
+	location kernel.Location,
+	volume int,
+	status Status,
+) *Order {
+	return &Order{
+		id:            id,
+		courierID:     courierID,
+		location:      location,
+		volume:        volume,
+		status:        status,
+		BaseAggregate: ddd.NewBaseAggregate(),
+	}
 }
