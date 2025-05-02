@@ -13,6 +13,6 @@ func NewCompositionRoot(c Config) CompositionRoot {
 	return app
 }
 
-func (cr *CompositionRoot) NewOrderDispatcher() services.IOrderDispatcher {
+func (cr *CompositionRoot) NewOrderDispatcher() services.OrderDispatcher {
 	return services.NewOrderDispatcher()
 }

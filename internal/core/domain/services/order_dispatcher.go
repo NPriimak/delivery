@@ -12,20 +12,20 @@ var (
 	SuitableCourierNotFound = errors.New("suitable courier not found")
 )
 
-type IOrderDispatcher interface {
+type OrderDispatcher interface {
 	Dispatch(order *order.Order, couriers []*courier.Courier) (*courier.Courier, error)
 }
 
-var _ IOrderDispatcher = &OrderDispatcher{}
+var _ OrderDispatcher = &orderDispatcher{}
 
-type OrderDispatcher struct {
+type orderDispatcher struct {
 }
 
-func NewOrderDispatcher() IOrderDispatcher {
-	return &OrderDispatcher{}
+func NewOrderDispatcher() OrderDispatcher {
+	return &orderDispatcher{}
 }
 
-func (p *OrderDispatcher) Dispatch(order *order.Order, couriers []*courier.Courier) (*courier.Courier, error) {
+func (p *orderDispatcher) Dispatch(order *order.Order, couriers []*courier.Courier) (*courier.Courier, error) {
 	if order == nil {
 		return nil, errs.NewValueIsRequiredError("order")
 	}
