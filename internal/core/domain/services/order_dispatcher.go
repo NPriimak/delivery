@@ -25,14 +25,33 @@ func NewOrderDispatcher() OrderDispatcher {
 	return &orderDispatcher{}
 }
 
-func (p *orderDispatcher) Dispatch(order *order.Order, couriers []*courier.Courier) (*courier.Courier, error) {
-	if order == nil {
-		return nil, errs.NewValueIsRequiredError("order")
+func (p *orderDispatcher) Dispatch(currentOrder *order.Order, couriers []*courier.Courier) (*courier.Courier, error) {
+	if currentOrder == nil {
+		return nil, errs.NewValueIsRequiredError("currentOrder")
 	}
 	if couriers == nil || len(couriers) == 0 {
 		return nil, errs.NewValueIsRequiredError("couriers")
 	}
 
+	bestCourier, err := p.findBestCourier(currentOrder, couriers)
+	if err != nil {
+		return nil, err
+	}
+
+	if currentOrder.Status() != order.StatusCreated {
+		return nil, order.ErrOrderHasAlreadyBeenAssigned
+	}
+	if err := currentOrder.Assign(bestCourier.ID()); err != nil {
+		return nil, err
+	}
+	if err := bestCourier.TakeOrder(currentOrder); err != nil {
+		return nil, err
+	}
+
+	return bestCourier, nil
+}
+
+func (p *orderDispatcher) findBestCourier(order *order.Order, couriers []*courier.Courier) (*courier.Courier, error) {
 	var bestCourier *courier.Courier
 	minTime := math.MaxFloat64
 
@@ -58,13 +77,6 @@ func (p *orderDispatcher) Dispatch(order *order.Order, couriers []*courier.Couri
 
 	if bestCourier == nil {
 		return nil, SuitableCourierNotFound
-	}
-
-	if err := order.Assign(bestCourier.ID()); err != nil {
-		return nil, err
-	}
-	if err := bestCourier.TakeOrder(order); err != nil {
-		return nil, err
 	}
 
 	return bestCourier, nil
