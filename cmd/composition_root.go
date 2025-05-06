@@ -1,12 +1,18 @@
 package cmd
 
-import "delivery/internal/core/domain/services"
+import (
+	"delivery/internal/core/domain/services"
+	"gorm.io/gorm"
+)
 
 type CompositionRoot struct {
 	configs Config
+	gormDb  *gorm.DB
+
+	closers []Closer
 }
 
-func NewCompositionRoot(c Config) CompositionRoot {
+func NewCompositionRoot(c Config, gormDb *gorm.DB) CompositionRoot {
 	app := CompositionRoot{
 		configs: c,
 	}

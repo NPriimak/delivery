@@ -113,3 +113,13 @@ func (s *StoragePlace) Equals(other *StoragePlace) bool {
 	}
 	return s.id == other.id
 }
+
+// RestoreStoragePlace restore StoragePlace from db. DO NOT USE IN DOMAIN!
+func RestoreStoragePlace(id uuid.UUID, name string, totalVolume int, orderID *uuid.UUID) *StoragePlace {
+	return &StoragePlace{
+		id:          id,
+		name:        name,
+		totalVolume: totalVolume,
+		orderID:     orderID,
+	}
+}
