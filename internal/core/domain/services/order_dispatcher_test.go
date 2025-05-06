@@ -17,7 +17,7 @@ func Test_DispatchErrors(t *testing.T) {
 
 	t.Run("nil order", func(t *testing.T) {
 		_, err := svc.Dispatch(nil, []*courier.Courier{})
-		assert.EqualError(t, err, errs.NewValueIsRequiredError("order").Error())
+		assert.EqualError(t, err, errs.NewValueIsRequiredError("currentOrder").Error())
 	})
 
 	t.Run("nil couriers slice", func(t *testing.T) {
