@@ -1,7 +1,7 @@
 package shared
 
 import (
-	"context"
+	"delivery/internal/core/ports"
 	"delivery/internal/pkg/ddd"
 	"gorm.io/gorm"
 )
@@ -11,6 +11,5 @@ type TxManager interface {
 	Db() *gorm.DB
 	InTx() bool
 	Track(agg ddd.AggregateRoot)
-	Begin(ctx context.Context)
-	Commit(ctx context.Context) error
+	ports.UnitOfWork
 }
