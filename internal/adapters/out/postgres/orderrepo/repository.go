@@ -2,6 +2,7 @@ package orderrepo
 
 import (
 	"context"
+	"delivery/internal/adapters/out/postgres/shared"
 	"delivery/internal/core/domain/model/order"
 	"delivery/internal/core/ports"
 	"delivery/internal/pkg/errs"
@@ -14,30 +15,30 @@ import (
 var _ ports.OrderRepository = &Repository{}
 
 type Repository struct {
-	uow ports.UnitOfWork
+	tracker shared.TxManager
 }
 
-func NewRepository(uow ports.UnitOfWork) (*Repository, error) {
-	if uow == nil {
+func NewOrderRepository(tracker shared.TxManager) (*Repository, error) {
+	if tracker == nil {
 		return nil, errs.NewValueIsRequiredError("uow")
 	}
 
 	return &Repository{
-		uow: uow,
+		tracker: tracker,
 	}, nil
 }
 
 func (r *Repository) Add(ctx context.Context, aggregate *order.Order) error {
-	r.uow.Track(aggregate)
+	r.tracker.Track(aggregate)
 
 	dto := DomainToDTO(aggregate)
 
 	// Открыта ли транзакция?
-	isInTransaction := r.uow.InTx()
+	isInTransaction := r.tracker.InTx()
 	if !isInTransaction {
-		r.uow.Begin(ctx)
+		r.tracker.Begin(ctx)
 	}
-	tx := r.uow.Tx()
+	tx := r.tracker.Tx()
 
 	// Вносим изменения
 	err := tx.WithContext(ctx).Session(&gorm.Session{FullSaveAssociations: true}).Create(&dto).Error
@@ -47,7 +48,7 @@ func (r *Repository) Add(ctx context.Context, aggregate *order.Order) error {
 
 	// Если не было внешней в транзакции, то коммитим изменения
 	if !isInTransaction {
-		err := r.uow.Commit(ctx)
+		err := r.tracker.Commit(ctx)
 		if err != nil {
 			return err
 		}
@@ -56,16 +57,16 @@ func (r *Repository) Add(ctx context.Context, aggregate *order.Order) error {
 }
 
 func (r *Repository) Update(ctx context.Context, aggregate *order.Order) error {
-	r.uow.Track(aggregate)
+	r.tracker.Track(aggregate)
 
 	dto := DomainToDTO(aggregate)
 
 	// Открыта ли транзакция?
-	isInTransaction := r.uow.InTx()
+	isInTransaction := r.tracker.InTx()
 	if !isInTransaction {
-		r.uow.Begin(ctx)
+		r.tracker.Begin(ctx)
 	}
-	tx := r.uow.Tx()
+	tx := r.tracker.Tx()
 
 	// Вносим изменения
 	err := tx.WithContext(ctx).Session(&gorm.Session{FullSaveAssociations: true}).Save(&dto).Error
@@ -75,7 +76,7 @@ func (r *Repository) Update(ctx context.Context, aggregate *order.Order) error {
 
 	// Если не было внешней в транзакции, то коммитим изменения
 	if !isInTransaction {
-		err := r.uow.Commit(ctx)
+		err := r.tracker.Commit(ctx)
 		if err != nil {
 			return err
 		}
@@ -141,8 +142,8 @@ func (r *Repository) GetAllInAssignedStatus(ctx context.Context) ([]*order.Order
 }
 
 func (r *Repository) getTxOrDb() *gorm.DB {
-	if tx := r.uow.Tx(); tx != nil {
+	if tx := r.tracker.Tx(); tx != nil {
 		return tx
 	}
-	return r.uow.Db()
+	return r.tracker.Db()
 }

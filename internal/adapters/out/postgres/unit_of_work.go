@@ -31,13 +31,13 @@ func NewUnitOfWork(db *gorm.DB) (ports.UnitOfWork, error) {
 		db: db,
 	}
 
-	courierRepo, err := courierrepo.NewRepository(uow)
+	courierRepo, err := courierrepo.NewCourierRepository(uow)
 	if err != nil {
 		return nil, err
 	}
 	uow.courierRepository = courierRepo
 
-	orderRepo, err := orderrepo.NewRepository(uow)
+	orderRepo, err := orderrepo.NewOrderRepository(uow)
 	if err != nil {
 		return nil, err
 	}

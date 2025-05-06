@@ -2,6 +2,7 @@ package courierrepo
 
 import (
 	"context"
+	"delivery/internal/adapters/out/postgres/shared"
 	"delivery/internal/core/domain/model/courier"
 	"delivery/internal/core/ports"
 	"delivery/internal/pkg/errs"
@@ -13,15 +14,15 @@ import (
 var _ ports.CourierRepository = &Repository{}
 
 type Repository struct {
-	uow ports.UnitOfWork
+	txManager shared.TxManager
 }
 
-func NewRepository(uow ports.UnitOfWork) (*Repository, error) {
-	if uow == nil {
+func NewCourierRepository(txManager shared.TxManager) (*Repository, error) {
+	if txManager == nil {
 		return nil, errs.NewValueIsRequiredError("uow")
 	}
 
-	return &Repository{uow}, nil
+	return &Repository{txManager}, nil
 }
 
 func (r *Repository) Add(ctx context.Context, aggregate *courier.Courier) error {
@@ -29,15 +30,15 @@ func (r *Repository) Add(ctx context.Context, aggregate *courier.Courier) error 
 		return errs.NewValueIsRequiredError("aggregate")
 	}
 
-	r.uow.Track(aggregate)
+	r.txManager.Track(aggregate)
 	dto := DomainToDTO(aggregate)
 
-	isInTransaction := r.uow.InTx()
+	isInTransaction := r.txManager.InTx()
 	if !isInTransaction {
-		r.uow.Begin(ctx)
+		r.txManager.Begin(ctx)
 	}
 
-	tx := r.uow.Tx()
+	tx := r.txManager.Tx()
 
 	err := tx.WithContext(ctx).Session(&gorm.Session{FullSaveAssociations: true}).Create(&dto).Error
 	if err != nil {
@@ -45,7 +46,7 @@ func (r *Repository) Add(ctx context.Context, aggregate *courier.Courier) error 
 	}
 
 	if !isInTransaction {
-		err := r.uow.Commit(ctx)
+		err := r.txManager.Commit(ctx)
 		if err != nil {
 			return err
 		}
@@ -59,14 +60,14 @@ func (r *Repository) Update(ctx context.Context, aggregate *courier.Courier) err
 		return errs.NewValueIsRequiredError("aggregate")
 	}
 
-	r.uow.Track(aggregate)
+	r.txManager.Track(aggregate)
 
 	dto := DomainToDTO(aggregate)
-	isInTransaction := r.uow.InTx()
+	isInTransaction := r.txManager.InTx()
 	if !isInTransaction {
-		r.uow.Begin(ctx)
+		r.txManager.Begin(ctx)
 	}
-	tx := r.uow.Tx()
+	tx := r.txManager.Tx()
 
 	err := tx.WithContext(ctx).Session(&gorm.Session{FullSaveAssociations: true}).Save(&dto).Error
 	if err != nil {
@@ -74,7 +75,7 @@ func (r *Repository) Update(ctx context.Context, aggregate *courier.Courier) err
 	}
 
 	if !isInTransaction {
-		err := r.uow.Commit(ctx)
+		err := r.txManager.Commit(ctx)
 		if err != nil {
 			return err
 		}
@@ -134,8 +135,8 @@ func (r *Repository) GetAllFree(ctx context.Context) ([]*courier.Courier, error)
 }
 
 func (r *Repository) getTxOrDb() *gorm.DB {
-	if tx := r.uow.Tx(); tx != nil {
+	if tx := r.txManager.Tx(); tx != nil {
 		return tx
 	}
-	return r.uow.Db()
+	return r.txManager.Db()
 }
