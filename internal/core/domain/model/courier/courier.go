@@ -3,6 +3,7 @@ package courier
 import (
 	"delivery/internal/core/domain/model/kernel"
 	"delivery/internal/core/domain/model/order"
+	"delivery/internal/pkg/ddd"
 	"delivery/internal/pkg/errs"
 	"errors"
 	"github.com/google/uuid"
@@ -25,6 +26,8 @@ type Courier struct {
 	speed         int
 	location      kernel.Location
 	storagePlaces []*StoragePlace
+
+	*ddd.BaseAggregate
 }
 
 func NewCourier(name string, speed int, location kernel.Location) (*Courier, error) {
@@ -46,6 +49,7 @@ func NewCourier(name string, speed int, location kernel.Location) (*Courier, err
 		speed:         speed,
 		location:      location,
 		storagePlaces: storagePlaces,
+		BaseAggregate: ddd.NewBaseAggregate(),
 	}, nil
 }
 
@@ -240,4 +244,22 @@ func (c *Courier) Equals(other *Courier) bool {
 	}
 
 	return c.id == other.id
+}
+
+// RestoreCourier restore Courier from db. DO NOT USE IN DOMAIN!
+func RestoreCourier(
+	id uuid.UUID,
+	name string,
+	speed int,
+	location kernel.Location,
+	storagePlaces []*StoragePlace,
+) *Courier {
+	return &Courier{
+		id:            id,
+		name:          name,
+		speed:         speed,
+		location:      location,
+		storagePlaces: storagePlaces,
+		BaseAggregate: ddd.NewBaseAggregate(),
+	}
 }

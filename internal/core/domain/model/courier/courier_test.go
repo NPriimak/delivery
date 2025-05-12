@@ -24,6 +24,7 @@ func Test_createNewCourier(t *testing.T) {
 		assert.Equal(t, loc, c.Location())
 		assert.NotNil(t, c.StoragePlaces())
 		assert.Empty(t, c.StoragePlaces())
+		assert.NotNil(t, c.BaseAggregate)
 	})
 
 	t.Run("given invalid parameters when create new courier then return error", func(t *testing.T) {
@@ -216,6 +217,34 @@ func Test_equals(t *testing.T) {
 				assert.Equal(t, test.expected, result)
 			})
 		}
+	})
+}
+
+func Test_RestoreCourier(t *testing.T) {
+	t.Run("Must correctly restore aggregate", func(t *testing.T) {
+		expectedID := uuid.New()
+		expectedName := "Name"
+		expectedSpeed := 5
+		expectedLocation := createLocation(t, 1, 1)
+		expectedSP := make([]*StoragePlace, 0)
+		for i := 1; i <= 5; i++ {
+			sp, _ := NewStoragePlace(string(rune(i)), i)
+			expectedSP = append(expectedSP, sp)
+		}
+
+		result := RestoreCourier(
+			expectedID,
+			expectedName,
+			expectedSpeed,
+			expectedLocation,
+			expectedSP,
+		)
+
+		assert.Equal(t, result.ID(), expectedID)
+		assert.Equal(t, result.Name(), expectedName)
+		assert.Equal(t, result.Speed(), expectedSpeed)
+		assert.Equal(t, result.Location(), expectedLocation)
+		assert.Equal(t, len(result.StoragePlaces()), len(expectedSP))
 	})
 }
 

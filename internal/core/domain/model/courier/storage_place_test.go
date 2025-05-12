@@ -193,3 +193,19 @@ func Test_givenInvalidParams_whenClear_thenReturnError(t *testing.T) {
 		})
 	}
 }
+
+func Test_RestoreStoragePlace(t *testing.T) {
+	t.Run("Must correctly resotre", func(t *testing.T) {
+		expectedID := uuid.New()
+		expectedName := "Bag"
+		expectedVolume := 5
+		expectedOrderID := uuid.New()
+
+		storage := RestoreStoragePlace(expectedID, expectedName, expectedVolume, &expectedOrderID)
+
+		assert.Equal(t, expectedID, storage.ID())
+		assert.Equal(t, expectedName, storage.Name())
+		assert.Equal(t, expectedVolume, storage.TotalVolume())
+		assert.Equal(t, &expectedOrderID, storage.OrderID())
+	})
+}
