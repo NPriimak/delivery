@@ -6,6 +6,7 @@ import (
 	"delivery/internal/core/domain/model/order"
 	"delivery/internal/core/domain/services"
 	"delivery/internal/pkg/errs"
+	"errors"
 	"testing"
 
 	"github.com/google/uuid"
@@ -94,6 +95,13 @@ func TestDispatch_Success(t *testing.T) {
 			})
 		}
 	})
+}
+
+func Test_Error(t *testing.T) {
+	var err = errs.ErrObjectNotFound
+	var target = errs.NewObjectNotFoundError("str", nil)
+
+	println(errors.Is(target, err))
 }
 
 // HELPERS
