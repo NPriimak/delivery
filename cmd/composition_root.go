@@ -1,7 +1,9 @@
 package cmd
 
 import (
-	"delivery/internal/adapters/out/postgres"
+	"delivery/internal/adapters/out/postgres/courierrepo"
+	"delivery/internal/adapters/out/postgres/orderrepo"
+	"delivery/internal/adapters/out/postgres/shared"
 	"delivery/internal/core/application/usecases/commands"
 	"delivery/internal/core/application/usecases/queries"
 	"delivery/internal/core/domain/services"
@@ -24,7 +26,16 @@ func NewCompositionRoot(c Config, gormDb *gorm.DB) CompositionRoot {
 }
 
 func (cr *CompositionRoot) NewAssignOrdersCommandHandler() commands.AssignOrderCommandHandler {
-	handler, err := commands.NewAssignOrderCommandHandler(cr.NewUnitOfWork(), cr.NewOrderDispatcher())
+	txManager := cr.newTxManager()
+	orderRepository := cr.newOrderRepository(txManager)
+	courierRepository := cr.newCourierRepository(txManager)
+
+	handler, err := commands.NewAssignOrderCommandHandler(
+		txManager,
+		cr.newOrderDispatcher(),
+		orderRepository,
+		courierRepository,
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -32,7 +43,10 @@ func (cr *CompositionRoot) NewAssignOrdersCommandHandler() commands.AssignOrderC
 }
 
 func (cr *CompositionRoot) NewCreateCourierCommandHandler() commands.CreateCourierCommandHandler {
-	handler, err := commands.NewCreateCourierCommandHandler(cr.NewUnitOfWork())
+	txManager := cr.newTxManager()
+	courierRepository := cr.newCourierRepository(txManager)
+
+	handler, err := commands.NewCreateCourierCommandHandler(txManager, courierRepository)
 	if err != nil {
 		panic(err)
 	}
@@ -40,7 +54,10 @@ func (cr *CompositionRoot) NewCreateCourierCommandHandler() commands.CreateCouri
 }
 
 func (cr *CompositionRoot) NewCreateOrderCommandHandler() commands.CreateOrderCommandHandler {
-	handler, err := commands.NewCreateOrderCommandHandler(cr.NewUnitOfWork())
+	txManager := cr.newTxManager()
+	orderRepository := cr.newOrderRepository(txManager)
+
+	handler, err := commands.NewCreateOrderCommandHandler(txManager, orderRepository)
 	if err != nil {
 		panic(err)
 	}
@@ -48,7 +65,11 @@ func (cr *CompositionRoot) NewCreateOrderCommandHandler() commands.CreateOrderCo
 }
 
 func (cr *CompositionRoot) NewMoveCouriersCommandHandler() commands.MoveCouriersCommandHandler {
-	handler, err := commands.NewMoveCouriersCommandHandler(cr.NewUnitOfWork())
+	txManager := cr.newTxManager()
+	orderRepository := cr.newOrderRepository(txManager)
+	courierRepository := cr.newCourierRepository(txManager)
+
+	handler, err := commands.NewMoveCouriersCommandHandler(txManager, orderRepository, courierRepository)
 	if err != nil {
 		panic(err)
 	}
@@ -71,14 +92,30 @@ func (cr *CompositionRoot) NewGetNotCompletedOrdersQueryHandler() queries.GetNot
 	return handler
 }
 
-func (cr *CompositionRoot) NewUnitOfWork() ports.UnitOfWork {
-	uow, err := postgres.NewUnitOfWork(cr.gormDb)
+func (cr *CompositionRoot) newTxManager() shared.TxManager {
+	tx, err := shared.NewTxManager(cr.gormDb)
 	if err != nil {
 		panic(err)
 	}
-	return uow
+	return tx
 }
 
-func (cr *CompositionRoot) NewOrderDispatcher() services.OrderDispatcher {
+func (cr *CompositionRoot) newOrderDispatcher() services.OrderDispatcher {
 	return services.NewOrderDispatcher()
+}
+
+func (cr *CompositionRoot) newOrderRepository(txManager shared.TxManager) ports.OrderRepository {
+	res, err := orderrepo.NewOrderRepository(txManager)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
+func (cr *CompositionRoot) newCourierRepository(txManager shared.TxManager) ports.CourierRepository {
+	res, err := courierrepo.NewCourierRepository(txManager)
+	if err != nil {
+		panic(err)
+	}
+	return res
 }

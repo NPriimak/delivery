@@ -50,17 +50,22 @@ type CreateCourierCommandHandler interface {
 var _ CreateCourierCommandHandler = &createCourierCommandHandler{}
 
 type createCourierCommandHandler struct {
-	unitOfWork ports.UnitOfWork
+	unitOfWork       ports.UnitOfWork
+	courseRepository ports.CourierRepository
 }
 
-func NewCreateCourierCommandHandler(
-	unitOfWork ports.UnitOfWork) (CreateCourierCommandHandler, error) {
-	if unitOfWork == nil {
-		return nil, errs.NewValueIsRequiredError("unitOfWork")
+func NewCreateCourierCommandHandler(uow ports.UnitOfWork, repo ports.CourierRepository) (CreateCourierCommandHandler, error) {
+	if uow == nil {
+		return nil, errs.NewValueIsRequiredError("uow")
+	}
+
+	if repo == nil {
+		return nil, errs.NewValueIsRequiredError("repo")
 	}
 
 	return &createCourierCommandHandler{
-		unitOfWork: unitOfWork,
+		unitOfWork:       uow,
+		courseRepository: repo,
 	}, nil
 }
 
@@ -75,7 +80,7 @@ func (ch *createCourierCommandHandler) Handle(ctx context.Context, cmd CreateCou
 		return err
 	}
 
-	err = ch.unitOfWork.CourierRepository().Add(ctx, courierAggregate)
+	err = ch.courseRepository.Add(ctx, courierAggregate)
 	if err != nil {
 		return err
 	}

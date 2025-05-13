@@ -32,23 +32,36 @@ type AssignOrderCommandHandler interface {
 var _ AssignOrderCommandHandler = &assignOrdersCommandHandler{}
 
 type assignOrdersCommandHandler struct {
-	unitOfWork      ports.UnitOfWork
-	orderDispatcher services.OrderDispatcher
+	unitOfWork        ports.UnitOfWork
+	orderRepository   ports.OrderRepository
+	courierRepository ports.CourierRepository
+	orderDispatcher   services.OrderDispatcher
 }
 
 func NewAssignOrderCommandHandler(
 	unitOfWork ports.UnitOfWork,
-	orderDispatcher services.OrderDispatcher) (AssignOrderCommandHandler, error) {
+	orderDispatcher services.OrderDispatcher,
+	orderRepository ports.OrderRepository,
+	courierRepository ports.CourierRepository,
+) (AssignOrderCommandHandler, error) {
 	if unitOfWork == nil {
 		return nil, errs.NewValueIsRequiredError("unitOfWork")
+	}
+	if orderRepository == nil {
+		return nil, errs.NewValueIsRequiredError("orderRepository")
+	}
+	if courierRepository == nil {
+		return nil, errs.NewValueIsRequiredError("courierRepository")
 	}
 	if orderDispatcher == nil {
 		return nil, errs.NewValueIsRequiredError("orderDispatcher")
 	}
 
 	return &assignOrdersCommandHandler{
-		unitOfWork:      unitOfWork,
-		orderDispatcher: orderDispatcher}, nil
+		unitOfWork:        unitOfWork,
+		orderRepository:   orderRepository,
+		courierRepository: courierRepository,
+		orderDispatcher:   orderDispatcher}, nil
 }
 
 func (ch *assignOrdersCommandHandler) Handle(ctx context.Context, command AssignOrderCmd) error {
@@ -56,7 +69,7 @@ func (ch *assignOrdersCommandHandler) Handle(ctx context.Context, command Assign
 		return errs.NewValueIsRequiredError("command")
 	}
 
-	orderAggregate, err := ch.unitOfWork.OrderRepository().GetFirstInCreatedStatus(ctx)
+	orderAggregate, err := ch.orderRepository.GetFirstInCreatedStatus(ctx)
 	if err != nil {
 		if errors.Is(err, errs.ErrObjectNotFound) {
 			return NotAvailableOrders
@@ -64,7 +77,7 @@ func (ch *assignOrdersCommandHandler) Handle(ctx context.Context, command Assign
 		return err
 	}
 
-	couriers, err := ch.unitOfWork.CourierRepository().GetAllFree(ctx)
+	couriers, err := ch.courierRepository.GetAllFree(ctx)
 	if err != nil {
 		if errors.Is(err, errs.ErrObjectNotFound) {
 			return NotAvailableCouriers
@@ -82,11 +95,11 @@ func (ch *assignOrdersCommandHandler) Handle(ctx context.Context, command Assign
 
 	ch.unitOfWork.Begin(ctx)
 
-	err = ch.unitOfWork.OrderRepository().Update(ctx, orderAggregate)
+	err = ch.orderRepository.Update(ctx, orderAggregate)
 	if err != nil {
 		return err
 	}
-	err = ch.unitOfWork.CourierRepository().Update(ctx, courier)
+	err = ch.courierRepository.Update(ctx, courier)
 	if err != nil {
 		return err
 	}

@@ -29,17 +29,33 @@ type MoveCouriersCommandHandler interface {
 var _ MoveCouriersCommandHandler = &moveCouriersCommandHandler{}
 
 type moveCouriersCommandHandler struct {
-	unitOfWork ports.UnitOfWork
+	unitOfWork       ports.UnitOfWork
+	orderRepository  ports.OrderRepository
+	courseRepository ports.CourierRepository
 }
 
 func NewMoveCouriersCommandHandler(
-	unitOfWork ports.UnitOfWork) (MoveCouriersCommandHandler, error) {
+	unitOfWork ports.UnitOfWork,
+	orderRepository ports.OrderRepository,
+	courierRepository ports.CourierRepository,
+) (MoveCouriersCommandHandler, error) {
+
 	if unitOfWork == nil {
 		return nil, errs.NewValueIsRequiredError("unitOfWork")
 	}
 
+	if orderRepository == nil {
+		return nil, errs.NewValueIsRequiredError("orderRepository")
+	}
+
+	if courierRepository == nil {
+		return nil, errs.NewValueIsRequiredError("courierRepository")
+	}
+
 	return &moveCouriersCommandHandler{
-		unitOfWork: unitOfWork}, nil
+		unitOfWork:       unitOfWork,
+		orderRepository:  orderRepository,
+		courseRepository: courierRepository}, nil
 }
 
 func (ch *moveCouriersCommandHandler) Handle(ctx context.Context, cmd MoveCouriersCmd) error {
@@ -47,7 +63,7 @@ func (ch *moveCouriersCommandHandler) Handle(ctx context.Context, cmd MoveCourie
 		return errs.NewValueIsRequiredError("cmd")
 	}
 
-	assignedOrders, err := ch.unitOfWork.OrderRepository().GetAllInAssignedStatus(ctx)
+	assignedOrders, err := ch.orderRepository.GetAllInAssignedStatus(ctx)
 	if err != nil {
 		if errors.Is(err, errs.ErrObjectNotFound) {
 			return nil
@@ -57,7 +73,7 @@ func (ch *moveCouriersCommandHandler) Handle(ctx context.Context, cmd MoveCourie
 
 	ch.unitOfWork.Begin(ctx)
 	for _, assignedOrder := range assignedOrders {
-		courier, err := ch.unitOfWork.CourierRepository().Get(ctx, *assignedOrder.CourierID())
+		courier, err := ch.courseRepository.Get(ctx, *assignedOrder.CourierID())
 		if err != nil {
 			return err
 		}
@@ -78,11 +94,11 @@ func (ch *moveCouriersCommandHandler) Handle(ctx context.Context, cmd MoveCourie
 			}
 		}
 
-		err = ch.unitOfWork.OrderRepository().Update(ctx, assignedOrder)
+		err = ch.orderRepository.Update(ctx, assignedOrder)
 		if err != nil {
 			return err
 		}
-		err = ch.unitOfWork.CourierRepository().Update(ctx, courier)
+		err = ch.courseRepository.Update(ctx, courier)
 		if err != nil {
 			return err
 		}

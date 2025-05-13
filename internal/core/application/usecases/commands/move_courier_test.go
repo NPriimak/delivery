@@ -16,7 +16,21 @@ import (
 
 func Test_CreateNewHandler(t *testing.T) {
 	t.Run("Return err with nil UOW", func(t *testing.T) {
-		_, err := NewMoveCouriersCommandHandler(nil)
+		orderRepo := ports.NewMockOrderRepository(t)
+		courierRepo := ports.NewMockCourierRepository(t)
+		_, err := NewMoveCouriersCommandHandler(nil, orderRepo, courierRepo)
+		assert.Errorf(t, err, errs.NewValueIsRequiredError("unitOfWork").Error())
+	})
+	t.Run("Return err with nil order repository", func(t *testing.T) {
+		uow := ports.NewMockUnitOfWork(t)
+		courierRepo := ports.NewMockCourierRepository(t)
+		_, err := NewMoveCouriersCommandHandler(uow, nil, courierRepo)
+		assert.Errorf(t, err, errs.NewValueIsRequiredError("unitOfWork").Error())
+	})
+	t.Run("Return err with nil courier repository", func(t *testing.T) {
+		uow := ports.NewMockUnitOfWork(t)
+		orderRepo := ports.NewMockOrderRepository(t)
+		_, err := NewMoveCouriersCommandHandler(uow, orderRepo, nil)
 		assert.Errorf(t, err, errs.NewValueIsRequiredError("unitOfWork").Error())
 	})
 
@@ -25,7 +39,9 @@ func Test_CreateNewHandler(t *testing.T) {
 func Test_Handle_WithInvalidArgs(t *testing.T) {
 	t.Run("return error if given empty cmd", func(t *testing.T) {
 		uow := ports.NewMockUnitOfWork(t)
-		handler, _ := NewMoveCouriersCommandHandler(uow)
+		orderRepo := ports.NewMockOrderRepository(t)
+		courierRepo := ports.NewMockCourierRepository(t)
+		handler, _ := NewMoveCouriersCommandHandler(uow, orderRepo, courierRepo)
 
 		err := handler.Handle(context.Background(), MoveCouriersCmd{})
 		assert.Errorf(t, err, errs.NewValueIsRequiredError("cmd").Error())
@@ -36,12 +52,11 @@ func Test_Handle_NegativeScenarios(t *testing.T) {
 	t.Run("If order not found - return nil", func(t *testing.T) {
 		uow := ports.NewMockUnitOfWork(t)
 		orderRepo := ports.NewMockOrderRepository(t)
-
-		uow.On("OrderRepository").Return(orderRepo)
+		courierRepo := ports.NewMockCourierRepository(t)
 
 		orderRepo.On("GetAllInAssignedStatus", mock.Anything).Return([]*order.Order{}, errs.ErrObjectNotFound)
 
-		handler, _ := NewMoveCouriersCommandHandler(uow)
+		handler, _ := NewMoveCouriersCommandHandler(uow, orderRepo, courierRepo)
 		cmd, _ := NewMoveCouriersCmd()
 
 		err := handler.Handle(context.Background(), cmd)
@@ -58,14 +73,12 @@ func Test_Handle_NegativeScenarios(t *testing.T) {
 		orderRepo := ports.NewMockOrderRepository(t)
 		courierRepo := ports.NewMockCourierRepository(t)
 
-		uow.On("OrderRepository").Return(orderRepo)
-		uow.On("CourierRepository").Return(courierRepo)
 		uow.On("Begin", mock.Anything).Return()
 
 		orderRepo.On("GetAllInAssignedStatus", mock.Anything).Return([]*order.Order{testOrder}, nil)
 		courierRepo.On("Get", mock.Anything, courierId).Return(nil, errs.ErrObjectNotFound)
 
-		handler, _ := NewMoveCouriersCommandHandler(uow)
+		handler, _ := NewMoveCouriersCommandHandler(uow, orderRepo, courierRepo)
 		cmd, _ := NewMoveCouriersCmd()
 
 		err := handler.Handle(context.Background(), cmd)
@@ -85,8 +98,6 @@ func Test_Handle_PositiveScenarios(t *testing.T) {
 		orderRepo := ports.NewMockOrderRepository(t)
 		courierRepo := ports.NewMockCourierRepository(t)
 
-		uow.On("OrderRepository").Return(orderRepo)
-		uow.On("CourierRepository").Return(courierRepo)
 		uow.On("Begin", mock.Anything).Return()
 		uow.On("Commit", mock.Anything).Return(nil)
 
@@ -96,7 +107,7 @@ func Test_Handle_PositiveScenarios(t *testing.T) {
 		orderRepo.On("Update", mock.Anything, testOrder).Return(nil)
 		courierRepo.On("Update", mock.Anything, testCourier).Return(nil)
 
-		handler, _ := NewMoveCouriersCommandHandler(uow)
+		handler, _ := NewMoveCouriersCommandHandler(uow, orderRepo, courierRepo)
 		cmd, _ := NewMoveCouriersCmd()
 
 		err := handler.Handle(context.Background(), cmd)

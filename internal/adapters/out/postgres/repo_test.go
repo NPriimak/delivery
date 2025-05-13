@@ -4,18 +4,14 @@ import (
 	"context"
 	"delivery/internal/adapters/out/postgres/courierrepo"
 	"delivery/internal/adapters/out/postgres/orderrepo"
+	"delivery/internal/adapters/out/postgres/shared"
 	"delivery/internal/core/domain/model/kernel"
-	"delivery/internal/core/ports"
 	"delivery/internal/pkg/testcnts"
 	"github.com/stretchr/testify/assert"
 	postgresgorm "gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"testing"
 )
-
-func Test_CourierRepository(t *testing.T) {
-
-}
 
 func setupTest(t *testing.T) (context.Context, *gorm.DB) {
 	ctx := context.Background()
@@ -48,10 +44,10 @@ func setupTest(t *testing.T) (context.Context, *gorm.DB) {
 	return ctx, db
 }
 
-func createUOW(t *testing.T, db *gorm.DB) ports.UnitOfWork {
-	uow, err := NewUnitOfWork(db)
+func createTxManager(t *testing.T, db *gorm.DB) shared.TxManager {
+	tx, err := shared.NewTxManager(db)
 	assert.NoError(t, err)
-	return uow
+	return tx
 }
 
 func createTestLocation(t *testing.T, x uint8, y uint8) kernel.Location {

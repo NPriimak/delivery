@@ -62,14 +62,19 @@ type CreateOrderCommandHandler interface {
 var _ CreateOrderCommandHandler = &createOrderCommandHandler{}
 
 type createOrderCommandHandler struct {
-	unitOfWork ports.UnitOfWork
+	unitOfWork      ports.UnitOfWork
+	orderRepository ports.OrderRepository
 }
 
-func NewCreateOrderCommandHandler(unitOfWork ports.UnitOfWork) (CreateOrderCommandHandler, error) {
-	if unitOfWork == nil {
-		return nil, errs.NewValueIsRequiredError("initOfWork")
+func NewCreateOrderCommandHandler(uow ports.UnitOfWork, repo ports.OrderRepository) (CreateOrderCommandHandler, error) {
+	if uow == nil {
+		return nil, errs.NewValueIsRequiredError("uow")
 	}
-	return &createOrderCommandHandler{unitOfWork: unitOfWork}, nil
+
+	if repo == nil {
+		return nil, errs.NewValueIsRequiredError("repo")
+	}
+	return &createOrderCommandHandler{unitOfWork: uow, orderRepository: repo}, nil
 }
 
 func (ch *createOrderCommandHandler) Handle(ctx context.Context, cmd CreateOrderCmd) error {
@@ -77,7 +82,7 @@ func (ch *createOrderCommandHandler) Handle(ctx context.Context, cmd CreateOrder
 		return errs.NewValueIsRequiredError("cmd")
 	}
 
-	existingOrder, err := ch.unitOfWork.OrderRepository().Get(ctx, cmd.OrderID())
+	existingOrder, err := ch.orderRepository.Get(ctx, cmd.OrderID())
 	if err != nil {
 		return err
 	}
@@ -96,7 +101,7 @@ func (ch *createOrderCommandHandler) Handle(ctx context.Context, cmd CreateOrder
 		return err
 	}
 
-	err = ch.unitOfWork.OrderRepository().Add(ctx, existingOrder)
+	err = ch.orderRepository.Add(ctx, existingOrder)
 	if err != nil {
 		return err
 	}
