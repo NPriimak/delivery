@@ -120,10 +120,10 @@ func Test_CourierRepository_GetAllFree(t *testing.T) {
 		first, _ := courier.NewCourier("test", 5, location)
 		second, _ := courier.NewCourier("test", 6, location)
 
-		order, _ := order.NewOrder(uuid.New(), createTestLocation(t, 10, 10), 5)
+		newOrder, _ := order.NewOrder(uuid.New(), createTestLocation(t, 10, 10), 5)
 		third, _ := courier.NewCourier("test", 7, location)
-		third.AddStoragePlace("Bag", 5)
-		third.TakeOrder(order)
+		_ = third.AddStoragePlace("Bag", 5)
+		_ = third.TakeOrder(newOrder)
 
 		db.Create(courierrepo.DomainToDTO(first)).
 			Create(courierrepo.DomainToDTO(second)).
@@ -133,14 +133,14 @@ func Test_CourierRepository_GetAllFree(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Len(t, result, 2)
-		notContinsBusyCourier := true
+		notContainsBusyCourier := true
 		for _, c := range result {
 			if c.ID() == third.ID() {
-				notContinsBusyCourier = false
+				notContainsBusyCourier = false
 			}
 		}
 
-		assert.True(t, notContinsBusyCourier)
+		assert.True(t, notContainsBusyCourier)
 	})
 }
 

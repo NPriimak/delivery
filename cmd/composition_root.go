@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"delivery/internal/adapters/in/jobs"
 	"delivery/internal/adapters/out/postgres/courierrepo"
 	"delivery/internal/adapters/out/postgres/orderrepo"
 	"delivery/internal/adapters/out/postgres/shared"
@@ -8,6 +9,7 @@ import (
 	"delivery/internal/core/application/usecases/queries"
 	"delivery/internal/core/domain/services"
 	"delivery/internal/core/ports"
+	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
 )
 
@@ -21,11 +23,30 @@ type CompositionRoot struct {
 func NewCompositionRoot(c Config, gormDb *gorm.DB) CompositionRoot {
 	app := CompositionRoot{
 		configs: c,
+		gormDb:  gormDb,
 	}
 	return app
 }
 
-func (cr *CompositionRoot) NewAssignOrdersCommandHandler() commands.AssignOrderCommandHandler {
+func (cr *CompositionRoot) NewAssignOrderJob() cron.Job {
+	handler := cr.NewAssignOrderCommandHandler()
+	job, err := jobs.NewAssignOrderJob(handler)
+	if err != nil {
+		panic(err)
+	}
+	return job
+}
+
+func (cr *CompositionRoot) NewMoveCouriersJob() cron.Job {
+	handler := cr.NewMoveCouriersCommandHandler()
+	job, err := jobs.NewMoveCouriersJob(handler)
+	if err != nil {
+		panic(err)
+	}
+	return job
+}
+
+func (cr *CompositionRoot) NewAssignOrderCommandHandler() commands.AssignOrderCommandHandler {
 	txManager := cr.newTxManager()
 	orderRepository := cr.newOrderRepository(txManager)
 	courierRepository := cr.newCourierRepository(txManager)
