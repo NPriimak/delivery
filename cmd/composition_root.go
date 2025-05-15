@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"delivery/internal/adapters/in/jobs"
+	"delivery/internal/adapters/out/grpc/geo"
 	"delivery/internal/adapters/out/postgres/courierrepo"
 	"delivery/internal/adapters/out/postgres/orderrepo"
 	"delivery/internal/adapters/out/postgres/shared"
@@ -77,8 +78,9 @@ func (cr *CompositionRoot) NewCreateCourierCommandHandler() commands.CreateCouri
 func (cr *CompositionRoot) NewCreateOrderCommandHandler() commands.CreateOrderCommandHandler {
 	txManager := cr.newTxManager()
 	orderRepository := cr.newOrderRepository(txManager)
+	geoClient := cr.NewGeoClient()
 
-	handler, err := commands.NewCreateOrderCommandHandler(txManager, orderRepository)
+	handler, err := commands.NewCreateOrderCommandHandler(txManager, orderRepository, geoClient)
 	if err != nil {
 		panic(err)
 	}
@@ -139,4 +141,13 @@ func (cr *CompositionRoot) newCourierRepository(txManager shared.TxManager) port
 		panic(err)
 	}
 	return res
+}
+
+func (cr *CompositionRoot) NewGeoClient() ports.GeoLocationGateway {
+	client, err := geo.NewGeoLocationService(cr.configs.GeoServiceGrpcHost)
+	if err != nil {
+		panic(err)
+	}
+	cr.RegisterCloser(client)
+	return client
 }
