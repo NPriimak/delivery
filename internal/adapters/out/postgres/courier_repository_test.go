@@ -2,8 +2,10 @@ package postgres
 
 import (
 	"delivery/internal/adapters/out/postgres/courierrepo"
+	"delivery/internal/adapters/out/postgres/shared"
 	"delivery/internal/core/domain/model/courier"
 	"delivery/internal/core/domain/model/order"
+	"delivery/internal/core/ports"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm/clause"
@@ -13,13 +15,14 @@ import (
 func Test_CourierRepository_Add(t *testing.T) {
 	t.Run("Add new courier", func(t *testing.T) {
 		ctx, db := setupTest(t)
-		uow := createUOW(t, db)
+		tx := createTxManager(t, db)
+		repo := createCourierRepository(t, tx)
 
 		location := createTestLocation(t, 1, 1)
 		expected, err := courier.NewCourier("test", 5, location)
 		assert.NoError(t, err)
 
-		err = uow.CourierRepository().Add(ctx, expected)
+		err = repo.Add(ctx, expected)
 		assert.NoError(t, err)
 
 		var result courierrepo.CourierDTO
@@ -35,7 +38,8 @@ func Test_CourierRepository_Add(t *testing.T) {
 
 	t.Run("Add new courier with storage", func(t *testing.T) {
 		ctx, db := setupTest(t)
-		uow := createUOW(t, db)
+		tx := createTxManager(t, db)
+		repo := createCourierRepository(t, tx)
 
 		location := createTestLocation(t, 1, 1)
 		expected, err := courier.NewCourier("test", 5, location)
@@ -43,7 +47,7 @@ func Test_CourierRepository_Add(t *testing.T) {
 		err = expected.AddStoragePlace("Bag", 5)
 		assert.NoError(t, err)
 
-		err = uow.CourierRepository().Add(ctx, expected)
+		err = repo.Add(ctx, expected)
 		assert.NoError(t, err)
 
 		var result courierrepo.CourierDTO
@@ -56,11 +60,11 @@ func Test_CourierRepository_Add(t *testing.T) {
 		assert.Equal(t, expected.StoragePlaces()[0].TotalVolume(), result.StoragePlaces[0].TotalVolume)
 	})
 }
-
 func Test_CourierRepository_Update(t *testing.T) {
 	t.Run("Update courier", func(t *testing.T) {
 		ctx, db := setupTest(t)
-		uow := createUOW(t, db)
+		tx := createTxManager(t, db)
+		repo := createCourierRepository(t, tx)
 
 		location := createTestLocation(t, 1, 1)
 		old, err := courier.NewCourier("test", 5, location)
@@ -72,7 +76,7 @@ func Test_CourierRepository_Update(t *testing.T) {
 		err = old.AddStoragePlace("Bag", 5)
 		assert.NoError(t, err)
 
-		err = uow.CourierRepository().Update(ctx, old)
+		err = repo.Update(ctx, old)
 		assert.NoError(t, err)
 
 		var result courierrepo.CourierDTO
@@ -89,7 +93,8 @@ func Test_CourierRepository_Update(t *testing.T) {
 func Test_CourierRepository_GetByID(t *testing.T) {
 	t.Run("Get courier by ID", func(t *testing.T) {
 		ctx, db := setupTest(t)
-		uow := createUOW(t, db)
+		tx := createTxManager(t, db)
+		repo := createCourierRepository(t, tx)
 
 		location := createTestLocation(t, 1, 1)
 		expected, err := courier.NewCourier("test", 5, location)
@@ -98,7 +103,7 @@ func Test_CourierRepository_GetByID(t *testing.T) {
 		err = db.Create(courierrepo.DomainToDTO(expected)).Error
 		assert.NoError(t, err)
 
-		result, err := uow.CourierRepository().Get(ctx, expected.ID())
+		result, err := repo.Get(ctx, expected.ID())
 		assert.NoError(t, err)
 
 		assert.Equal(t, expected.ID(), result.ID())
@@ -108,7 +113,8 @@ func Test_CourierRepository_GetByID(t *testing.T) {
 func Test_CourierRepository_GetAllFree(t *testing.T) {
 	t.Run("Return all free couriers", func(t *testing.T) {
 		ctx, db := setupTest(t)
-		uow := createUOW(t, db)
+		tx := createTxManager(t, db)
+		repo := createCourierRepository(t, tx)
 
 		location := createTestLocation(t, 1, 1)
 		first, _ := courier.NewCourier("test", 5, location)
@@ -123,7 +129,7 @@ func Test_CourierRepository_GetAllFree(t *testing.T) {
 			Create(courierrepo.DomainToDTO(second)).
 			Create(courierrepo.DomainToDTO(third))
 
-		result, err := uow.CourierRepository().GetAllFree(ctx)
+		result, err := repo.GetAllFree(ctx)
 		assert.NoError(t, err)
 
 		assert.Len(t, result, 2)
@@ -136,4 +142,10 @@ func Test_CourierRepository_GetAllFree(t *testing.T) {
 
 		assert.True(t, notContinsBusyCourier)
 	})
+}
+
+func createCourierRepository(t *testing.T, tx shared.TxManager) ports.CourierRepository {
+	res, err := courierrepo.NewCourierRepository(tx)
+	assert.NoError(t, err)
+	return res
 }

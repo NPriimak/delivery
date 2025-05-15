@@ -15,30 +15,30 @@ import (
 var _ ports.OrderRepository = &Repository{}
 
 type Repository struct {
-	tracker shared.TxManager
+	txManager shared.TxManager
 }
 
-func NewOrderRepository(tracker shared.TxManager) (*Repository, error) {
-	if tracker == nil {
+func NewOrderRepository(tx shared.TxManager) (*Repository, error) {
+	if tx == nil {
 		return nil, errs.NewValueIsRequiredError("uow")
 	}
 
 	return &Repository{
-		tracker: tracker,
+		txManager: tx,
 	}, nil
 }
 
 func (r *Repository) Add(ctx context.Context, aggregate *order.Order) error {
-	r.tracker.Track(aggregate)
+	r.txManager.Track(aggregate)
 
 	dto := DomainToDTO(aggregate)
 
 	// Открыта ли транзакция?
-	isInTransaction := r.tracker.InTx()
+	isInTransaction := r.txManager.InTx()
 	if !isInTransaction {
-		r.tracker.Begin(ctx)
+		r.txManager.Begin(ctx)
 	}
-	tx := r.tracker.Tx()
+	tx := r.txManager.Tx()
 
 	// Вносим изменения
 	err := tx.WithContext(ctx).Session(&gorm.Session{FullSaveAssociations: true}).Create(&dto).Error
@@ -48,7 +48,7 @@ func (r *Repository) Add(ctx context.Context, aggregate *order.Order) error {
 
 	// Если не было внешней в транзакции, то коммитим изменения
 	if !isInTransaction {
-		err := r.tracker.Commit(ctx)
+		err := r.txManager.Commit(ctx)
 		if err != nil {
 			return err
 		}
@@ -57,16 +57,16 @@ func (r *Repository) Add(ctx context.Context, aggregate *order.Order) error {
 }
 
 func (r *Repository) Update(ctx context.Context, aggregate *order.Order) error {
-	r.tracker.Track(aggregate)
+	r.txManager.Track(aggregate)
 
 	dto := DomainToDTO(aggregate)
 
 	// Открыта ли транзакция?
-	isInTransaction := r.tracker.InTx()
+	isInTransaction := r.txManager.InTx()
 	if !isInTransaction {
-		r.tracker.Begin(ctx)
+		r.txManager.Begin(ctx)
 	}
-	tx := r.tracker.Tx()
+	tx := r.txManager.Tx()
 
 	// Вносим изменения
 	err := tx.WithContext(ctx).Session(&gorm.Session{FullSaveAssociations: true}).Save(&dto).Error
@@ -76,7 +76,7 @@ func (r *Repository) Update(ctx context.Context, aggregate *order.Order) error {
 
 	// Если не было внешней в транзакции, то коммитим изменения
 	if !isInTransaction {
-		err := r.tracker.Commit(ctx)
+		err := r.txManager.Commit(ctx)
 		if err != nil {
 			return err
 		}
@@ -142,8 +142,8 @@ func (r *Repository) GetAllInAssignedStatus(ctx context.Context) ([]*order.Order
 }
 
 func (r *Repository) getTxOrDb() *gorm.DB {
-	if tx := r.tracker.Tx(); tx != nil {
+	if tx := r.txManager.Tx(); tx != nil {
 		return tx
 	}
-	return r.tracker.Db()
+	return r.txManager.Db()
 }

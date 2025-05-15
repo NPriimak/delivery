@@ -1,0 +1,37 @@
+all: false
+dir: ./mocks
+filename: '{{.InterfaceName}}_mock.go'
+force-file-write: false
+log-level: info
+structname: '{{.Mock}}{{.InterfaceName}}'
+pkgname: '{{.SrcPackageName}}'
+
+packages:
+  delivery/internal/core/ports:
+    config:
+      dir: ./mocks/core/ports
+    interfaces:
+      CourierRepository:
+      OrderRepository:
+      UnitOfWork:
+
+  delivery/internal/core/domain/services:
+    config:
+      dir: ./mocks/core/domain/services
+    interfaces:
+      OrderDispatcher:
+
+  delivery/internal/core/application/usecases/commands:
+    config:
+      dir: ./mocks/core/application/usecases/commands
+    interfaces:
+      AssignOrderCommandHandler:
+      CreateOrderCommandHandler:
+      MoveCouriersCommandHandler:
+
+  delivery/internal/core/application/usecases/queries:
+    config:
+      dir: ./mocks/core/application/usecases/queries
+    interfaces:
+      GetAllCouriersQueryHandler:
+      GetNotCompletedOrdersQueryHandler:
