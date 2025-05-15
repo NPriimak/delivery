@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	"delivery/internal/core/domain/model/kernel"
 	"delivery/internal/core/domain/model/order"
 	"delivery/internal/core/ports"
 	"delivery/internal/pkg/errs"
@@ -103,7 +102,10 @@ func (ch *createOrderCommandHandler) Handle(ctx context.Context, cmd CreateOrder
 		return nil
 	}
 
-	location := kernel.CreateRandomLocation()
+	location, err := ch.geoLocationGateway.DefineLocation(ctx, cmd.Street())
+	if err != nil {
+		return err
+	}
 
 	existingOrder, err = order.NewOrder(
 		cmd.OrderID(),
