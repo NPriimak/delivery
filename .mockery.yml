@@ -1,7 +1,7 @@
 all: false
 dir: ./mocks
 filename: '{{.InterfaceName}}_mock.go'
-force-file-write: false
+force-file-write: true
 log-level: info
 structname: '{{.Mock}}{{.InterfaceName}}'
 pkgname: '{{.SrcPackageName}}'

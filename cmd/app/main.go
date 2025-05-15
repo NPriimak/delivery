@@ -3,13 +3,19 @@ package main
 import (
 	"database/sql"
 	"delivery/cmd"
+	httpin "delivery/internal/adapters/in/http"
 	"delivery/internal/adapters/out/postgres/courierrepo"
 	"delivery/internal/adapters/out/postgres/orderrepo"
+	"delivery/internal/generated/servers"
 	"delivery/internal/pkg/errs"
 	"fmt"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/labstack/gommon/log"
+	_ "github.com/lib/pq"
+	oam "github.com/oapi-codegen/echo-middleware"
+	"github.com/robfig/cron/v3"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"net/http"
@@ -45,8 +51,8 @@ func main() {
 	)
 	defer compositionRoot.CloseAll()
 
+	startCron(compositionRoot)
 	startWebServer(compositionRoot, configs.HttpPort)
-
 }
 
 func getConfigs() cmd.Config {
@@ -153,12 +159,87 @@ func mustAutoMigrate(db *gorm.DB) {
 	}
 }
 
-func startWebServer(_ cmd.CompositionRoot, port string) {
-	e := echo.New()
-	e.GET("/health", func(c echo.Context) error {
-		return c.String(http.StatusOK, "Healthy")
-	})
+func startWebServer(compositionRoot cmd.CompositionRoot, port string) {
+	handlers, err := httpin.NewServer(
+		compositionRoot.NewCreateOrderCommandHandler(),
+		compositionRoot.NewCreateCourierCommandHandler(),
+		compositionRoot.NewGetAllCouriersQueryHandler(),
+		compositionRoot.NewGetNotCompletedOrdersQueryHandler(),
+	)
+	if err != nil {
+		log.Fatalf("Ошибка инициализации HTTP Server: %v", err)
+	}
 
+	e := echo.New()
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"*"},
+		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE, echo.OPTIONS},
+	}))
+
+	spec, err := servers.GetSwagger()
+	if err != nil {
+		log.Fatalf("Error reading OpenAPI spec: %v", err)
+	}
+	e.Use(oam.OapiRequestValidator(spec))
+	e.Pre(middleware.RemoveTrailingSlash())
+	registerSwaggerOpenApi(e)
+	registerSwaggerUi(e)
+	servers.RegisterHandlers(e, handlers)
 	e.Logger.Fatal(e.Start(fmt.Sprintf("0.0.0.0:%s", port)))
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))
+}
+
+func registerSwaggerOpenApi(e *echo.Echo) {
+	e.GET("/openapi.json", func(c echo.Context) error {
+		swagger, err := servers.GetSwagger()
+		if err != nil {
+			return c.String(http.StatusInternalServerError, "failed to load swagger: "+err.Error())
+		}
+
+		data, err := swagger.MarshalJSON()
+		if err != nil {
+			return c.String(http.StatusInternalServerError, "failed to marshal swagger: "+err.Error())
+		}
+
+		return c.Blob(http.StatusOK, "application/json", data)
+	})
+}
+
+func registerSwaggerUi(e *echo.Echo) {
+	e.GET("/docs", func(c echo.Context) error {
+		html := `
+		<!DOCTYPE html>
+		<html lang="en">
+		<head>
+		  <meta charset="UTF-8">
+		  <title>Swagger UI</title>
+		  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css">
+		</head>
+		<body>
+		  <div id="swagger-ui"></div>
+		  <script src="https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js"></script>
+		  <script>
+			window.onload = () => {
+			  SwaggerUIBundle({
+				url: "/openapi.json",
+				dom_id: "#swagger-ui",
+			  });
+			};
+		  </script>
+		</body>
+		</html>`
+		return c.HTML(http.StatusOK, html)
+	})
+}
+
+func startCron(compositionRoot cmd.CompositionRoot) {
+	c := cron.New()
+	_, err := c.AddJob("@every 1s", compositionRoot.NewAssignOrderJob())
+	if err != nil {
+		log.Fatalf("ошибка при добавлении задачи: %v", err)
+	}
+	_, err = c.AddJob("@every 1s", compositionRoot.NewMoveCouriersJob())
+	if err != nil {
+		log.Fatalf("ошибка при добавлении задачи: %v", err)
+	}
+	c.Start()
 }
