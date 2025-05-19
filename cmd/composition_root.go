@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"delivery/internal/adapters/in/jobs"
+	kafkain "delivery/internal/adapters/in/kafka"
 	"delivery/internal/adapters/out/grpc/geo"
 	"delivery/internal/adapters/out/postgres/courierrepo"
 	"delivery/internal/adapters/out/postgres/orderrepo"
@@ -150,4 +151,18 @@ func (cr *CompositionRoot) NewGeoClient() ports.GeoLocationGateway {
 	}
 	cr.RegisterCloser(client)
 	return client
+}
+
+func (cr *CompositionRoot) NewBasketConfirmedConsumer() kafkain.BasketConfirmedConsumer {
+	consumer, err := kafkain.NewBasketConfirmedConsumer(
+		[]string{cr.configs.KafkaHost},
+		cr.configs.KafkaConsumerGroup,
+		cr.configs.KafkaBasketConfirmedTopic,
+		cr.NewCreateOrderCommandHandler(),
+	)
+	if err != nil {
+		panic(err)
+	}
+	cr.RegisterCloser(consumer)
+	return consumer
 }
