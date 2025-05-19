@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	"delivery/internal/core/domain/model/kernel"
 	"delivery/internal/core/domain/model/order"
 	"delivery/internal/core/ports"
 	"delivery/internal/pkg/errs"
@@ -62,11 +61,16 @@ type CreateOrderCommandHandler interface {
 var _ CreateOrderCommandHandler = &createOrderCommandHandler{}
 
 type createOrderCommandHandler struct {
-	unitOfWork      ports.UnitOfWork
-	orderRepository ports.OrderRepository
+	unitOfWork         ports.UnitOfWork
+	orderRepository    ports.OrderRepository
+	geoLocationGateway ports.GeoLocationGateway
 }
 
-func NewCreateOrderCommandHandler(uow ports.UnitOfWork, repo ports.OrderRepository) (CreateOrderCommandHandler, error) {
+func NewCreateOrderCommandHandler(
+	uow ports.UnitOfWork,
+	repo ports.OrderRepository,
+	geoLocationGateway ports.GeoLocationGateway,
+) (CreateOrderCommandHandler, error) {
 	if uow == nil {
 		return nil, errs.NewValueIsRequiredError("uow")
 	}
@@ -74,7 +78,15 @@ func NewCreateOrderCommandHandler(uow ports.UnitOfWork, repo ports.OrderReposito
 	if repo == nil {
 		return nil, errs.NewValueIsRequiredError("repo")
 	}
-	return &createOrderCommandHandler{unitOfWork: uow, orderRepository: repo}, nil
+
+	if geoLocationGateway == nil {
+		return nil, errs.NewValueIsRequiredError("geoLocationGateway")
+	}
+	return &createOrderCommandHandler{
+		unitOfWork:         uow,
+		orderRepository:    repo,
+		geoLocationGateway: geoLocationGateway,
+	}, nil
 }
 
 func (ch *createOrderCommandHandler) Handle(ctx context.Context, cmd CreateOrderCmd) error {
@@ -90,7 +102,10 @@ func (ch *createOrderCommandHandler) Handle(ctx context.Context, cmd CreateOrder
 		return nil
 	}
 
-	location := kernel.CreateRandomLocation()
+	location, err := ch.geoLocationGateway.DefineLocation(ctx, cmd.Street())
+	if err != nil {
+		return err
+	}
 
 	existingOrder, err = order.NewOrder(
 		cmd.OrderID(),
