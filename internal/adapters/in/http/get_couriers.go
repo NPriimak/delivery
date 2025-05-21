@@ -10,21 +10,21 @@ import (
 	"net/http"
 )
 
-func (s *Server) GetCouriers(c echo.Context) error {
+func (s *Server) GetCouriers(ctx echo.Context) error {
 	query, err := queries.NewGetAllCouriersQuery()
 	if err != nil {
 		return problems.NewBadRequest(err.Error())
 	}
 
-	response, err := s.getAllCouriersQueryHandler.Handle(query)
+	response, err := s.Root.NewGetAllCouriersQueryHandler().Handle(query)
 	if err != nil {
 		if errors.Is(err, errs.ErrObjectNotFound) {
-			return c.JSON(http.StatusNotFound, problems.NewNotFound(err.Error()))
+			return ctx.JSON(http.StatusNotFound, problems.NewNotFound(err.Error()))
 		}
 	}
 
 	couriers := mapToCouriersDto(response)
-	return c.JSON(http.StatusOK, couriers)
+	return ctx.JSON(http.StatusOK, couriers)
 }
 
 func mapToCouriersDto(response queries.GetAllCouriersResponse) []servers.Courier {

@@ -161,12 +161,7 @@ func mustAutoMigrate(db *gorm.DB) {
 }
 
 func startWebServer(compositionRoot cmd.CompositionRoot, port string) {
-	handlers, err := httpin.NewServer(
-		compositionRoot.NewCreateOrderCommandHandler(),
-		compositionRoot.NewCreateCourierCommandHandler(),
-		compositionRoot.NewGetAllCouriersQueryHandler(),
-		compositionRoot.NewGetNotCompletedOrdersQueryHandler(),
-	)
+	handlers, err := httpin.NewServer(compositionRoot)
 	if err != nil {
 		log.Fatalf("Ошибка инициализации HTTP Server: %v", err)
 	}

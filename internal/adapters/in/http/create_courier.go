@@ -10,9 +10,9 @@ import (
 	"net/http"
 )
 
-func (s *Server) CreateCourier(c echo.Context) error {
+func (s *Server) CreateCourier(ctx echo.Context) error {
 	var courier servers.NewCourier
-	if err := c.Bind(&courier); err != nil {
+	if err := ctx.Bind(&courier); err != nil {
 		return problems.NewBadRequest("invalid JSON body: " + err.Error())
 	}
 
@@ -21,7 +21,7 @@ func (s *Server) CreateCourier(c echo.Context) error {
 		return problems.NewBadRequest(err.Error())
 	}
 
-	err = s.createCourierCommandHandler.Handle(c.Request().Context(), createCourierCommand)
+	err = s.Root.NewCreateCourierCommandHandler().Handle(ctx.Request().Context(), createCourierCommand)
 	if err != nil {
 		if errors.Is(err, errs.ErrObjectNotFound) {
 			return problems.NewNotFound(err.Error())
@@ -29,5 +29,5 @@ func (s *Server) CreateCourier(c echo.Context) error {
 		return problems.NewConflict(err.Error(), "/")
 	}
 
-	return c.JSON(http.StatusOK, nil)
+	return ctx.JSON(http.StatusOK, nil)
 }

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"delivery/internal/adapters/in/jobs"
 	kafkain "delivery/internal/adapters/in/kafka"
 	"delivery/internal/adapters/out/grpc/geo"
@@ -12,27 +13,47 @@ import (
 	"delivery/internal/core/domain/services"
 	"delivery/internal/core/ports"
 	"github.com/robfig/cron/v3"
+	"go.uber.org/dig"
 	"gorm.io/gorm"
 )
 
 type CompositionRoot struct {
-	configs Config
-	gormDb  *gorm.DB
+	container *dig.Container
+	configs   Config
 
 	closers []Closer
 }
 
-func NewCompositionRoot(c Config, gormDb *gorm.DB) CompositionRoot {
-	app := CompositionRoot{
-		configs: c,
-		gormDb:  gormDb,
+func NewCompositionRoot(config Config, db *gorm.DB) CompositionRoot {
+	container := dig.New()
+
+	// Provide common singletons
+	if err := container.Provide(func() *gorm.DB { return db }); err != nil {
+		panic(err)
 	}
-	return app
+	if err := container.Provide(func() Config { return config }); err != nil {
+		panic(err)
+	}
+	if err := container.Provide(shared.NewTxManagerFactory); err != nil {
+		panic(err)
+	}
+	if err := container.Provide(services.NewOrderDispatcher); err != nil {
+		panic(err)
+	}
+	if err := container.Provide(func(config Config) (ports.GeoLocationGateway, error) {
+		return geo.NewGeoLocationService(config.GeoServiceGrpcHost)
+	}); err != nil {
+		panic(err)
+	}
+
+	return CompositionRoot{
+		container: container,
+		configs:   config,
+	}
 }
 
 func (cr *CompositionRoot) NewAssignOrderJob() cron.Job {
-	handler := cr.NewAssignOrderCommandHandler()
-	job, err := jobs.NewAssignOrderJob(handler)
+	job, err := jobs.NewAssignOrderJob(cr.buildAssignOrderHandler())
 	if err != nil {
 		panic(err)
 	}
@@ -40,25 +61,113 @@ func (cr *CompositionRoot) NewAssignOrderJob() cron.Job {
 }
 
 func (cr *CompositionRoot) NewMoveCouriersJob() cron.Job {
-	handler := cr.NewMoveCouriersCommandHandler()
-	job, err := jobs.NewMoveCouriersJob(handler)
+	job, err := jobs.NewMoveCouriersJob(cr.buildMoveCouriersHandler())
 	if err != nil {
 		panic(err)
 	}
 	return job
 }
 
-func (cr *CompositionRoot) NewAssignOrderCommandHandler() commands.AssignOrderCommandHandler {
-	txManager := cr.newTxManager()
-	orderRepository := cr.newOrderRepository(txManager)
-	courierRepository := cr.newCourierRepository(txManager)
+func (cr *CompositionRoot) buildAssignOrderHandler() commands.AssignOrderCommandHandler {
+	var handler commands.AssignOrderCommandHandler
+	err := cr.container.Invoke(func(
+		ctx context.Context,
+		factory shared.TxManagerFactory,
+		dispatcher services.OrderDispatcher,
+	) {
+		txManager := factory.New()
+		uow := ports.UnitOfWork(txManager)
 
-	handler, err := commands.NewAssignOrderCommandHandler(
-		txManager,
-		cr.newOrderDispatcher(),
-		orderRepository,
-		courierRepository,
-	)
+		orderRepo, err := orderrepo.NewOrderRepository(txManager)
+		if err != nil {
+			panic(err)
+		}
+		courierRepo, err := courierrepo.NewCourierRepository(txManager)
+		if err != nil {
+			panic(err)
+		}
+		handler, err = commands.NewAssignOrderCommandHandler(uow, dispatcher, orderRepo, courierRepo)
+		if err != nil {
+			panic(err)
+		}
+	})
+	if err != nil {
+		panic(err)
+	}
+	return handler
+}
+
+func (cr *CompositionRoot) buildCreateCourierHandler() commands.CreateCourierCommandHandler {
+	var handler commands.CreateCourierCommandHandler
+	err := cr.container.Invoke(func(
+		ctx context.Context,
+		factory shared.TxManagerFactory,
+	) {
+		txManager := factory.New()
+		uow := ports.UnitOfWork(txManager)
+
+		repo, err := courierrepo.NewCourierRepository(txManager)
+		if err != nil {
+			panic(err)
+		}
+		handler, err = commands.NewCreateCourierCommandHandler(uow, repo)
+		if err != nil {
+			panic(err)
+		}
+	})
+	if err != nil {
+		panic(err)
+	}
+	return handler
+}
+
+func (cr *CompositionRoot) buildCreateOrderHandler() commands.CreateOrderCommandHandler {
+	var handler commands.CreateOrderCommandHandler
+	err := cr.container.Invoke(func(
+		ctx context.Context,
+		factory shared.TxManagerFactory,
+		geoClient ports.GeoLocationGateway,
+	) {
+		txManager := factory.New()
+		uow := ports.UnitOfWork(txManager)
+
+		orderRepo, err := orderrepo.NewOrderRepository(txManager)
+		if err != nil {
+			panic(err)
+		}
+		handler, err = commands.NewCreateOrderCommandHandler(uow, orderRepo, geoClient)
+		if err != nil {
+			panic(err)
+		}
+	})
+	if err != nil {
+		panic(err)
+	}
+	return handler
+}
+
+func (cr *CompositionRoot) buildMoveCouriersHandler() commands.MoveCouriersCommandHandler {
+	var handler commands.MoveCouriersCommandHandler
+	err := cr.container.Invoke(func(
+		ctx context.Context,
+		factory shared.TxManagerFactory,
+	) {
+		txManager := factory.New()
+		uow := ports.UnitOfWork(txManager)
+
+		orderRepo, err := orderrepo.NewOrderRepository(txManager)
+		if err != nil {
+			panic(err)
+		}
+		courierRepo, err := courierrepo.NewCourierRepository(txManager)
+		if err != nil {
+			panic(err)
+		}
+		handler, err = commands.NewMoveCouriersCommandHandler(uow, orderRepo, courierRepo)
+		if err != nil {
+			panic(err)
+		}
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -66,42 +175,23 @@ func (cr *CompositionRoot) NewAssignOrderCommandHandler() commands.AssignOrderCo
 }
 
 func (cr *CompositionRoot) NewCreateCourierCommandHandler() commands.CreateCourierCommandHandler {
-	txManager := cr.newTxManager()
-	courierRepository := cr.newCourierRepository(txManager)
-
-	handler, err := commands.NewCreateCourierCommandHandler(txManager, courierRepository)
-	if err != nil {
-		panic(err)
-	}
-	return handler
+	return cr.buildCreateCourierHandler()
 }
 
 func (cr *CompositionRoot) NewCreateOrderCommandHandler() commands.CreateOrderCommandHandler {
-	txManager := cr.newTxManager()
-	orderRepository := cr.newOrderRepository(txManager)
-	geoClient := cr.NewGeoClient()
+	return cr.buildCreateOrderHandler()
+}
 
-	handler, err := commands.NewCreateOrderCommandHandler(txManager, orderRepository, geoClient)
-	if err != nil {
-		panic(err)
-	}
-	return handler
+func (cr *CompositionRoot) NewAssignOrderCommandHandler() commands.AssignOrderCommandHandler {
+	return cr.buildAssignOrderHandler()
 }
 
 func (cr *CompositionRoot) NewMoveCouriersCommandHandler() commands.MoveCouriersCommandHandler {
-	txManager := cr.newTxManager()
-	orderRepository := cr.newOrderRepository(txManager)
-	courierRepository := cr.newCourierRepository(txManager)
-
-	handler, err := commands.NewMoveCouriersCommandHandler(txManager, orderRepository, courierRepository)
-	if err != nil {
-		panic(err)
-	}
-	return handler
+	return cr.buildMoveCouriersHandler()
 }
 
 func (cr *CompositionRoot) NewGetAllCouriersQueryHandler() queries.GetAllCouriersQueryHandler {
-	handler, err := queries.NewGetAllCouriersQueryHandler(cr.gormDb)
+	handler, err := queries.NewGetAllCouriersQueryHandler(cr.getDB())
 	if err != nil {
 		panic(err)
 	}
@@ -109,48 +199,11 @@ func (cr *CompositionRoot) NewGetAllCouriersQueryHandler() queries.GetAllCourier
 }
 
 func (cr *CompositionRoot) NewGetNotCompletedOrdersQueryHandler() queries.GetNotCompletedOrdersQueryHandler {
-	handler, err := queries.NewGetNotCompletedOrdersQueryHandler(cr.gormDb)
+	handler, err := queries.NewGetNotCompletedOrdersQueryHandler(cr.getDB())
 	if err != nil {
 		panic(err)
 	}
 	return handler
-}
-
-func (cr *CompositionRoot) newTxManager() shared.TxManager {
-	tx, err := shared.NewTxManager(cr.gormDb)
-	if err != nil {
-		panic(err)
-	}
-	return tx
-}
-
-func (cr *CompositionRoot) newOrderDispatcher() services.OrderDispatcher {
-	return services.NewOrderDispatcher()
-}
-
-func (cr *CompositionRoot) newOrderRepository(txManager shared.TxManager) ports.OrderRepository {
-	res, err := orderrepo.NewOrderRepository(txManager)
-	if err != nil {
-		panic(err)
-	}
-	return res
-}
-
-func (cr *CompositionRoot) newCourierRepository(txManager shared.TxManager) ports.CourierRepository {
-	res, err := courierrepo.NewCourierRepository(txManager)
-	if err != nil {
-		panic(err)
-	}
-	return res
-}
-
-func (cr *CompositionRoot) NewGeoClient() ports.GeoLocationGateway {
-	client, err := geo.NewGeoLocationService(cr.configs.GeoServiceGrpcHost)
-	if err != nil {
-		panic(err)
-	}
-	cr.RegisterCloser(client)
-	return client
 }
 
 func (cr *CompositionRoot) NewBasketConfirmedConsumer() kafkain.BasketConfirmedConsumer {
@@ -163,6 +216,20 @@ func (cr *CompositionRoot) NewBasketConfirmedConsumer() kafkain.BasketConfirmedC
 	if err != nil {
 		panic(err)
 	}
-	cr.RegisterCloser(consumer)
 	return consumer
+}
+
+func (cr *CompositionRoot) getDB() *gorm.DB {
+	var db *gorm.DB
+	err := cr.container.Invoke(func(d *gorm.DB) {
+		db = d
+	})
+	if err != nil {
+		panic(err)
+	}
+	return db
+}
+
+func (cr *CompositionRoot) Container() *dig.Container {
+	return cr.container
 }

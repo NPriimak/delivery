@@ -10,21 +10,21 @@ import (
 	"net/http"
 )
 
-func (s *Server) GetOrders(c echo.Context) error {
+func (s *Server) GetOrders(ctx echo.Context) error {
 	query, err := queries.NewGetNotCompletedOrdersQuery()
 	if err != nil {
 		return problems.NewBadRequest(err.Error())
 	}
 
-	response, err := s.getNotCompletedOrdersQueryHandler.Handle(query)
+	response, err := s.Root.NewGetNotCompletedOrdersQueryHandler().Handle(query)
 	if err != nil {
 		if errors.Is(err, errs.ErrObjectNotFound) {
-			return c.JSON(http.StatusNotFound, problems.NewNotFound(err.Error()))
+			return ctx.JSON(http.StatusNotFound, problems.NewNotFound(err.Error()))
 		}
 	}
 
 	orders := mapToOrdersDto(response)
-	return c.JSON(http.StatusOK, orders)
+	return ctx.JSON(http.StatusOK, orders)
 }
 
 func mapToOrdersDto(response queries.GetNotCompletedOrdersResponse) []servers.Order {
