@@ -11,12 +11,11 @@ import (
 )
 
 func (s *Server) CreateOrder(ctx echo.Context) error {
-	handler := s.Root.NewCreateOrderCommandHandler()
 	command, err := commands.NewCreateOrderCmd(uuid.New(), "Street", 5)
 	if err != nil {
 		return problems.NewBadRequest(err.Error())
 	}
-	err = handler.Handle(ctx.Request().Context(), command)
+	err = s.CreateOrderCommandHandler().Handle(ctx.Request().Context(), command)
 	if err != nil {
 		if errors.Is(err, errs.ErrObjectNotFound) {
 			return problems.NewNotFound(err.Error())

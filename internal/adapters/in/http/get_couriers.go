@@ -16,7 +16,7 @@ func (s *Server) GetCouriers(ctx echo.Context) error {
 		return problems.NewBadRequest(err.Error())
 	}
 
-	response, err := s.Root.NewGetAllCouriersQueryHandler().Handle(query)
+	response, err := s.GetAllCouriersQueryHandler().Handle(query)
 	if err != nil {
 		if errors.Is(err, errs.ErrObjectNotFound) {
 			return ctx.JSON(http.StatusNotFound, problems.NewNotFound(err.Error()))

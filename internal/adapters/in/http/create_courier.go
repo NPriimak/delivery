@@ -21,7 +21,7 @@ func (s *Server) CreateCourier(ctx echo.Context) error {
 		return problems.NewBadRequest(err.Error())
 	}
 
-	err = s.Root.NewCreateCourierCommandHandler().Handle(ctx.Request().Context(), createCourierCommand)
+	err = s.CreateCourierCommandHandler().Handle(ctx.Request().Context(), createCourierCommand)
 	if err != nil {
 		if errors.Is(err, errs.ErrObjectNotFound) {
 			return problems.NewNotFound(err.Error())

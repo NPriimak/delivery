@@ -16,7 +16,7 @@ func (s *Server) GetOrders(ctx echo.Context) error {
 		return problems.NewBadRequest(err.Error())
 	}
 
-	response, err := s.Root.NewGetNotCompletedOrdersQueryHandler().Handle(query)
+	response, err := s.GetNotCompletedOrdersQueryHandler().Handle(query)
 	if err != nil {
 		if errors.Is(err, errs.ErrObjectNotFound) {
 			return ctx.JSON(http.StatusNotFound, problems.NewNotFound(err.Error()))
