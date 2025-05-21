@@ -52,6 +52,7 @@ func main() {
 	defer compositionRoot.CloseAll()
 
 	startCron(compositionRoot)
+	startKafkaConsumer(compositionRoot)
 	startWebServer(compositionRoot, configs.HttpPort)
 }
 
@@ -242,4 +243,12 @@ func startCron(compositionRoot cmd.CompositionRoot) {
 		log.Fatalf("ошибка при добавлении задачи: %v", err)
 	}
 	c.Start()
+}
+
+func startKafkaConsumer(compositionRoot cmd.CompositionRoot) {
+	go func() {
+		if err := compositionRoot.NewBasketConfirmedConsumer().Consume(); err != nil {
+			log.Fatalf("Kafka consumer error: %v", err)
+		}
+	}()
 }
