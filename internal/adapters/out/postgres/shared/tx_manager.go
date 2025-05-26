@@ -18,6 +18,25 @@ type TxManager interface {
 	ports.UnitOfWork
 }
 
+type TxManagerFactory interface {
+	New() TxManager
+}
+
+var _ TxManagerFactory = &txFactory{}
+
+// реализация фабрики (stateless)
+type txFactory struct {
+	db *gorm.DB
+}
+
+func NewTxManagerFactory(db *gorm.DB) TxManagerFactory {
+	return &txFactory{db: db}
+}
+
+func (f *txFactory) New() TxManager {
+	return &txManager{db: f.db}
+}
+
 var _ ports.UnitOfWork = &txManager{}
 var _ TxManager = &txManager{}
 
